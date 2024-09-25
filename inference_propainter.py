@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
+import os
+
+# Add the current directory to the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
 import cv2
 import argparse
 import imageio
@@ -23,6 +30,7 @@ warnings.filterwarnings("ignore")
 
 pretrain_model_url = 'https://github.com/sczhou/ProPainter/releases/download/v0.1.0/'
 
+# Write the image to the specified file path
 def imwrite(img, file_path, params=None, auto_mkdir=True):
     if auto_mkdir:
         dir_name = os.path.abspath(os.path.dirname(file_path))
@@ -64,7 +72,9 @@ def read_frame_from_videos(frame_root):
         fps = None
     size = frames[0].size
 
-    return frames, fps, size, video_name
+    return frames, fps, size, video_name # Return the frames, fps, size, and video name
+
+
 
 
 def binary_mask(mask, th=0.1):
@@ -72,7 +82,27 @@ def binary_mask(mask, th=0.1):
     mask[mask<=th] = 0
     return mask
   
-  
+def read_single_mask(mask_img, size, flow_mask_dilates=8, mask_dilates=5):
+    if size is not None:
+        mask_img = mask_img.resize(size, Image.NEAREST)
+    mask_img = np.array(mask_img.convert('L'))
+
+    # Dilate for flow mask
+    if flow_mask_dilates > 0:
+        flow_mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=flow_mask_dilates).astype(np.uint8)
+    else:
+        flow_mask_img = binary_mask(mask_img).astype(np.uint8)
+    flow_mask = Image.fromarray(flow_mask_img * 255)
+    
+    # Dilate for regular mask
+    if mask_dilates > 0:
+        mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=mask_dilates).astype(np.uint8)
+    else:
+        mask_img = binary_mask(mask_img).astype(np.uint8)
+    mask_dilated = Image.fromarray(mask_img * 255)
+
+    return flow_mask, mask_dilated
+
 # read frame-wise masks
 def read_mask(mpath, length, size, flow_mask_dilates=8, mask_dilates=5):
     masks_img = []
@@ -155,7 +185,7 @@ def extrapolation(video_ori, scale):
     
     return frames, flow_masks, masks_dilated, (imgW_extr, imgH_extr)
 
-
+#
 def get_ref_index(mid_neighbor_id, neighbor_ids, length, ref_stride=10, ref_num=-1):
     ref_index = []
     if ref_num == -1:
@@ -229,6 +259,10 @@ if __name__ == '__main__':
 
     frames, size, out_size = resize_frames(frames, size)
     
+    # Handle single-frame input by duplicating the frame
+    if len(frames) == 1:
+        frames = frames * 2  # Duplicate the single frame
+    
     fps = args.save_fps if fps is None else fps
     save_root = os.path.join(args.output, video_name)
     if not os.path.exists(save_root):
@@ -239,6 +273,10 @@ if __name__ == '__main__':
         flow_masks, masks_dilated = read_mask(args.mask, frames_len, size, 
                                               flow_mask_dilates=args.mask_dilation,
                                               mask_dilates=args.mask_dilation)
+        # Duplicate masks if we duplicated the frame
+        if frames_len == 2 and len(flow_masks) == 1:
+            flow_masks = flow_masks * 2
+            masks_dilated = masks_dilated * 2
         w, h = size
     elif args.mode == 'video_outpainting':
         assert args.scale_h is not None and args.scale_w is not None, 'Please provide a outpainting scale (s_h, s_w).'

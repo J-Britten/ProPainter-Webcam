@@ -63,7 +63,7 @@ def get_frames_from_video(video_input, video_state):
     video_path = video_input
     frames = []
     user_name = time.time()
-    operation_log = [("[Must Do]", "Click image"), (": Video uploaded! Try to click the image shown in step2 to add masks.\n", None)]
+    operation_log = [("",""),("Video uploaded! Try to click the image shown in step2 to add masks.","Normal")]
     try:
         cap = cv2.VideoCapture(video_path)
         fps = cap.get(cv2.CAP_PROP_FPS)
@@ -157,10 +157,7 @@ def sam_refine(video_state, point_prompt, click_state, interactive_state, evt:gr
     video_state["logits"][video_state["select_frame_number"]] = logit
     video_state["painted_images"][video_state["select_frame_number"]] = painted_image
 
-    operation_log = [("[Must Do]", "Add mask"), (": add the current displayed mask for video segmentation.\n", None),
-                     ("[Optional]", "Remove mask"), (": remove all added masks.\n", None),
-                     ("[Optional]", "Clear clicks"), (": clear current displayed mask.\n", None),
-                     ("[Optional]", "Click image"), (": Try to click the image shown in step2 if you want to generate more masks.\n", None)]
+    operation_log = [("",""), ("You can try to add positive or negative points by clicking, click Clear clicks button to refresh the image, click Add mask button when you are satisfied with the segment, or click Remove mask button to remove all added masks.","Normal")]
     return painted_image, video_state, interactive_state, operation_log, operation_log
 
 def add_multi_mask(video_state, interactive_state, mask_dropdown):
@@ -496,8 +493,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css=css) as iface:
                 video_input = gr.Video(elem_classes="video")
                 extract_frames_button = gr.Button(value="Get video info", interactive=True, variant="primary") 
             with gr.Column(scale=2):
-                run_status = gr.HighlightedText(value=[("",""), ("Try to upload your video and click the Get video info button to get started!", "Normal")],
-                                                color_map={"Normal": "green", "Error": "red", "Clear clicks": "gray", "Add mask": "green", "Remove mask": "red"})
+                run_status = gr.HighlightedText(value=[("",""), ("Try to upload your video and click the Get svideo info button to get started!", "Normal")])
                 video_info = gr.Textbox(label="Video Info")
                 
         
@@ -509,8 +505,7 @@ with gr.Blocks(theme=gr.themes.Monochrome(), css=css) as iface:
                 image_selection_slider = gr.Slider(minimum=1, maximum=100, step=1, value=1, label="Track start frame", visible=False)
                 track_pause_number_slider = gr.Slider(minimum=1, maximum=100, step=1, value=1, label="Track end frame", visible=False)
             with gr.Column(scale=2, elem_classes="jc_center"):
-                run_status2 = gr.HighlightedText(value=[("",""), ("Try to upload your video and click the Get video info button to get started!", "Normal")],
-                                                color_map={"Normal": "green", "Error": "red", "Clear clicks": "gray", "Add mask": "green", "Remove mask": "red"})
+                run_status2 = gr.HighlightedText(value=[("",""), ("Try to upload your video and click the Get svideo info button to get started!", "Normal")], visible=False)
                 with gr.Row():
                     with gr.Column(scale=2, elem_classes="mask_button_group"):
                         clear_button_click = gr.Button(value="Clear clicks", interactive=True, visible=False)
