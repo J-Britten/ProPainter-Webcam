@@ -1,3 +1,15 @@
+# ProPainter WebCam
+Combines the ProPainter repo with semantic segmentation via [Pixellib](https://github.com/ayoolaolafenwa/PixelLib) for live Video Inpainting
+
+Requires separate download for the models from Pixellib ([Releases](https://github.com/ayoolaolafenwa/PixelLib/releases/tag/0.2.0))
+
+This repo is a WIP with unoptimized code.
+
+
+
+
+
+
 <div align="center">
 
 <div class="logo">

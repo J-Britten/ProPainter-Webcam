@@ -15,7 +15,7 @@ from inference_propainter import (
 
 # Initialize PixelLib
 segment_video = instanceSegmentation()
-segment_video.load_model("../pointrend_resnet50.pkl", detection_speed="fast")
+segment_video.load_model("pointrend_resnet50.pkl", detection_speed="fast")
 target_classes = segment_video.select_target_classes(car=True)
 
 # Initialize ProPainter models

@@ -13,6 +13,7 @@ version.py
 *.pth
 *.dat
 *.zip
+*.pkl
 
 # template
 
