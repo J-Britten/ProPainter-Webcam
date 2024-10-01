@@ -17,7 +17,15 @@ from inference_propainter import (
 
 # Initialize PixelLib
 segment_video = instanceSegmentation()
-segment_video.load_model("pointrend_resnet50.pkl", detection_speed="fast")
+
+# Download PointRend model
+pointrend_url = 'https://github.com/ayoolaolafenwa/PixelLib/releases/download/0.2.0/pointrend_resnet50.pkl'
+pointrend_ckpt_path = load_file_from_url(url=pointrend_url, 
+                                         model_dir='weights', 
+                                         progress=True, 
+                                         file_name='pointrend_resnet50.pkl')
+
+segment_video.load_model(pointrend_ckpt_path, detection_speed="fast")
 target_classes = segment_video.select_target_classes(car=True)
 
 # Initialize ProPainter models
@@ -60,38 +68,38 @@ def process_frame(frame, mask):
     
     frames, masks = frames.to(device), masks.to(device)
     
-    print(f"Frames shape: {frames.shape}")
-    print(f"Masks shape: {masks.shape}")
+    #print(f"Frames shape: {frames.shape}")
+    #print(f"Masks shape: {masks.shape}")
     
     with torch.no_grad():
         flows_f, flows_b = fix_raft(frames, iters=20)
         flows_bi = (flows_f, flows_b)
         
-        print(f"Flows forward shape: {flows_f.shape}")
-        print(f"Flows backward shape: {flows_b.shape}")
+        #print(f"Flows forward shape: {flows_f.shape}") 
+        #print(f"Flows backward shape: {flows_b.shape}")
         
         pred_flows_bi, _ = fix_flow_complete.forward_bidirect_flow(flows_bi, masks)
         pred_flows_bi = fix_flow_complete.combine_flow(flows_bi, pred_flows_bi, masks)
         
-        print(f"Pred flows bi shape: {pred_flows_bi[0].shape}, {pred_flows_bi[1].shape}")
+        #print(f"Pred flows bi shape: {pred_flows_bi[0].shape}, {pred_flows_bi[1].shape}")
         
         masked_frames = frames * (1 - masks)
         prop_imgs, updated_local_masks = model.img_propagation(masked_frames, pred_flows_bi, masks, 'nearest')
         b, t, _, _, _ = masks.size()
         updated_frames = frames * (1 - masks) + prop_imgs.view(b, t, 3, h, w) * masks
         
-        print(f"Updated frames shape: {updated_frames.shape}")
-        print(f"Updated local masks shape: {updated_local_masks.shape}")
+        #print(f"Updated frames shape: {updated_frames.shape}")
+        #print(f"Updated local masks shape: {updated_local_masks.shape}")
         
         try:
             pred_img = model(updated_frames, pred_flows_bi, masks, updated_local_masks.view(b, t, 1, h, w), t)
-            print(f"Pred img shape: {pred_img.shape}")
+            #print(f"Pred img shape: {pred_img.shape}")
         except Exception as e:
-            print(f"Error in model forward pass: {e}")
-            print(f"pred_flows_bi[0] shape: {pred_flows_bi[0].shape}")
-            print(f"pred_flows_bi[1] shape: {pred_flows_bi[1].shape}")
-            print(f"masks shape: {masks.shape}")
-            print(f"updated_local_masks shape: {updated_local_masks.shape}")
+            #print(f"Error in model forward pass: {e}")
+            #print(f"pred_flows_bi[0] shape: {pred_flows_bi[0].shape}")
+            #print(f"pred_flows_bi[1] shape: {pred_flows_bi[1].shape}")
+            #print(f"masks shape: {masks.shape}")
+            #print(f"updated_local_masks shape: {updated_local_masks.shape}")
             import traceback
             traceback.print_exc()
             return frame_rgb
