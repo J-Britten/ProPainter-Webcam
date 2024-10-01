@@ -5,6 +5,8 @@ import argparse
 import os
 import sys
 from PIL import Image
+import threading
+import queue
 
 
 from pixellib.torchbackend.instance import instanceSegmentation
@@ -100,13 +102,44 @@ def process_frame(frame, mask):
         
     return pred_img[0].astype(np.uint8)
 
+def propainter_thread(input_queue, output_queue):
+    while True:
+        item = input_queue.get()
+        if item is None:
+            break
+        
+        original_frame, combined_mask = item
+        
+        print("Valid mask found, processing with ProPainter")
+        inpainted_frame = process_frame(original_frame, combined_mask)
+        output_queue.put((combined_mask, inpainted_frame))
+
 def main():
     capture = cv2.VideoCapture(0)
+    
+    # Get the frame size
+    ret, frame = capture.read()
+    if not ret:
+        print("Failed to capture initial frame")
+        return
+    
+    frame_height, frame_width = frame.shape[:2]
+    
+    # Initialize combined_mask as an empty frame
+    combined_mask = np.zeros((frame_height, frame_width), dtype=np.uint8)
     
     # Initialize variables for FPS calculation
     fps = 0
     frame_count = 0
     start_time = cv2.getTickCount()
+    
+    # Create queues for inter-thread communication
+    input_queue = queue.Queue(maxsize=1)
+    output_queue = queue.Queue()
+    
+    # Start the ProPainter thread
+    propainter_thread_obj = threading.Thread(target=propainter_thread, args=(input_queue, output_queue))
+    propainter_thread_obj.start()
     
     while capture.isOpened():
         ret, frame = capture.read()
@@ -136,23 +169,35 @@ def main():
         if results is not None and 'masks' in results:
             masks = results['masks']
             if masks is not None and len(masks.shape) == 3 and masks.shape[2] > 0:
-                # Combine all masks into a single mask
+                # Update combined_mask
                 combined_mask = np.any(masks, axis=2)
-                
-                if np.any(combined_mask):
-                    print("Valid mask found, processing with ProPainter")
-                    inpainted_frame = process_frame(original_frame, combined_mask)
-                    cv2.imshow("Combined Mask", (combined_mask * 255).astype(np.uint8))
-                    cv2.imshow("Inpainted Frame", cv2.cvtColor(inpainted_frame, cv2.COLOR_RGB2BGR))
-                else:
-                    print("Combined mask is empty, skipping ProPainter processing")
             else:
-                print("No valid masks found, skipping ProPainter processing")
+                # Clear the combined_mask if no valid masks found
+                combined_mask.fill(0)
         else:
-            print("No segmentation results, skipping ProPainter processing")
+            # Clear the combined_mask if no segmentation results
+            combined_mask.fill(0)
+        
+        # Display the combined mask
+        cv2.imshow("Combined Mask", (combined_mask * 255).astype(np.uint8))
+        
+        # Send to ProPainter thread if the queue is empty
+        if input_queue.empty() and np.any(combined_mask):
+            input_queue.put((original_frame, combined_mask))
+        
+        # Check for ProPainter results
+        try:
+            _, inpainted_frame = output_queue.get_nowait()
+            cv2.imshow("Inpainted Frame", cv2.cvtColor(inpainted_frame, cv2.COLOR_RGB2BGR))
+        except queue.Empty:
+            pass
         
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+    
+    # Signal the ProPainter thread to exit
+    input_queue.put(None)
+    propainter_thread_obj.join()
     
     capture.release()
     cv2.destroyAllWindows()
